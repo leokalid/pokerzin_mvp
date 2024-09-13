@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Poker Settlement App</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
+        input, button { margin: 5px 0; padding: 5px; width: 100%; }
+        #gameArea, #results { display: none; }
+    </style>
+</head>
+<body>
+    <h1>Poker Settlement App</h1>
+
+    <div id="userRegistration">
+        <h2>Register</h2>
+        <input type="text" id="nickname" placeholder="Nickname">
+        <input type="text" id="pixKey" placeholder="PIX Key">
+        <button onclick="registerUser()">Register</button>
+    </div>
+
+    <div id="gameArea">
+        <h2>Game</h2>
+        <input type="text" id="gameId" placeholder="Game ID">
+        <input type="number" id="buyIn" placeholder="Buy-in Amount">
+        <button onclick="createOrJoinGame()">Create/Join Game</button>
+        <div id="transactions">
+            <h3>Transactions</h3>
+            <input type="number" id="amount" placeholder="Amount">
+            <button onclick="addTransaction('buy')">Buy In</button>
+            <button onclick="addTransaction('cash')">Cash Out</button>
+        </div>
+        <button onclick="settleGame()">Settle Game</button>
+    </div>
+
+    <div id="results"></div>
+
+    <script>
+        let currentUser, currentGame;
+
+        function registerUser() {
+            const nickname = document.getElementById('nickname').value;
+            const pixKey = document.getElementById('pixKey').value;
+            if (nickname && pixKey) {
+                currentUser = { nickname, pixKey };
+                localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                document.getElementById('userRegistration').style.display = 'none';
+                document.getElementById('gameArea').style.display = 'block';
+            } else {
+                alert('Please enter both nickname and PIX key');
+            }
+        }
+
+        function createOrJoinGame() {
+            const gameId = document.getElementById('gameId').value || Math.random().toString(36).substr(2, 6);
+            const buyIn = parseFloat(document.getElementById('buyIn').value);
+            if (buyIn) {
+                currentGame = JSON.parse(localStorage.getItem(gameId)) || { id: gameId, buyIn, players: {}, transactions: [] };
+                currentGame.players[currentUser.nickname] = currentUser;
+                currentGame.transactions.push({ player: currentUser.nickname, type: 'buy', amount: buyIn });
+                localStorage.setItem(gameId, JSON.stringify(currentGame));
+                alert(`Joined game ${gameId} with buy-in $${buyIn}`);
+                document.getElementById('gameId').value = gameId;
+            } else {
+                alert('Please enter a buy-in amount');
+            }
+        }
+
+        function addTransaction(type) {
+            if (!currentGame) {
+                alert('Please join a game first');
+                return;
+            }
+            const amount = parseFloat(document.getElementById('amount').value);
+            if (amount) {
+                currentGame.transactions.push({ player: currentUser.nickname, type, amount });
+                localStorage.setItem(currentGame.id, JSON.stringify(currentGame));
+                alert(`${type === 'buy' ? 'Buy-in' : 'Cash-out'} of $${amount} recorded`);
+            } else {
+                alert('Please enter a valid amount');
+            }
+        }
+
+        function settleGame() {
+            if (!currentGame) {
+                alert('No active game');
+                return;
+            }
+            const balances = {};
+            currentGame.transactions.forEach(t => {
+                balances[t.player] = (balances[t.player] || 0) + (t.type === 'buy' ? -t.amount : t.amount);
+            });
+
+            const debts = Object.entries(balances).filter(([_, balance]) => balance < 0);
+            const credits = Object.entries(balances).filter(([_, balance]) => balance > 0);
+
+            let results = '<h2>Settlement</h2>';
+            debts.forEach(([debtor, debtAmount]) => {
+                credits.forEach(([creditor, creditAmount]) => {
+                    if (debtAmount < 0 && creditAmount > 0) {
+                        const amount = Math.min(-debtAmount, creditAmount);
+                        results += `<p>${debtor} pays ${creditor} $${amount.toFixed(2)}</p>`;
+                        debtAmount += amount;
+                        creditAmount -= amount;
+                    }
+                });
+            });
+
+            document.getElementById('results').innerHTML = results;
+            document.getElementById('results').style.display = 'block';
+        }
+
+        // Check if user is already registered
+        const savedUser = localStorage.getItem('currentUser');
+        if (savedUser) {
+            currentUser = JSON.parse(savedUser);
+            document.getElementById('userRegistration').style.display = 'none';
+            document.getElementById('gameArea').style.display = 'block';
+        }
+    </script>
+</body>
+</html>
