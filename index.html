@@ -47,6 +47,7 @@
                 localStorage.setItem('currentUser', JSON.stringify(currentUser));
                 document.getElementById('userRegistration').style.display = 'none';
                 document.getElementById('gameArea').style.display = 'block';
+                checkUrlForGame();
             } else {
                 alert('Please enter both nickname and PIX key');
             }
@@ -62,6 +63,7 @@
                 localStorage.setItem(gameId, JSON.stringify(currentGame));
                 alert(`Joined game ${gameId} with buy-in $${buyIn}`);
                 document.getElementById('gameId').value = gameId;
+                window.history.pushState({}, '', `?game=${gameId}`);
             } else {
                 alert('Please enter a buy-in amount');
             }
@@ -111,13 +113,38 @@
             document.getElementById('results').style.display = 'block';
         }
 
+        function checkUrlForGame() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const gameId = urlParams.get('game');
+            if (gameId) {
+                const game = JSON.parse(localStorage.getItem(gameId));
+                if (game) {
+                    currentGame = game;
+                    document.getElementById('gameId').value = gameId;
+                    alert(`Joined existing game ${gameId}`);
+                }
+            }
+        }
+
         // Check if user is already registered
         const savedUser = localStorage.getItem('currentUser');
         if (savedUser) {
             currentUser = JSON.parse(savedUser);
             document.getElementById('userRegistration').style.display = 'none';
             document.getElementById('gameArea').style.display = 'block';
+            checkUrlForGame();
         }
+
+        // Periodically check for game updates
+        setInterval(() => {
+            if (currentGame) {
+                const updatedGame = JSON.parse(localStorage.getItem(currentGame.id));
+                if (updatedGame && JSON.stringify(updatedGame) !== JSON.stringify(currentGame)) {
+                    currentGame = updatedGame;
+                    alert('Game data updated');
+                }
+            }
+        }, 5000);
     </script>
 </body>
 </html>
